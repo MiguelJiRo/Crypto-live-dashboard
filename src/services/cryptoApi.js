@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://api.coingecko.com/api/v3';
+// Detectar si estamos en producción o desarrollo
+const IS_PRODUCTION = import.meta.env.PROD;
+
+// URLs base: usar serverless functions en producción
+const BASE_URL = IS_PRODUCTION
+  ? '' // En producción, usar rutas relativas a las funciones serverless
+  : 'https://api.coingecko.com/api/v3';
 
 // Lista de criptomonedas populares para mostrar
 export const CRYPTO_IDS = ['bitcoin', 'ethereum', 'binancecoin', 'cardano', 'solana', 'ripple'];
@@ -16,7 +22,11 @@ export const TIME_RANGES = {
 
 export const getCryptoPrices = async (cryptoIds = CRYPTO_IDS) => {
   try {
-    const response = await axios.get(`${BASE_URL}/simple/price`, {
+    const url = IS_PRODUCTION
+      ? '/api/coingecko-prices'
+      : `${BASE_URL}/simple/price`;
+
+    const response = await axios.get(url, {
       params: {
         ids: cryptoIds.join(','),
         vs_currencies: 'usd',
@@ -35,7 +45,11 @@ export const getCryptoPrices = async (cryptoIds = CRYPTO_IDS) => {
 // Función simplificada para obtener información básica (sin sparkline que causa CORS)
 export const getCryptosBasicInfo = async (cryptoIds = CRYPTO_IDS) => {
   try {
-    const response = await axios.get(`${BASE_URL}/coins/markets`, {
+    const url = IS_PRODUCTION
+      ? '/api/coingecko-markets'
+      : `${BASE_URL}/coins/markets`;
+
+    const response = await axios.get(url, {
       params: {
         vs_currency: 'usd',
         ids: cryptoIds.join(','),
@@ -60,79 +74,8 @@ export const getCryptosBasicInfo = async (cryptoIds = CRYPTO_IDS) => {
   }
 };
 
-// API alternativa: CoinCap (fallback cuando CoinGecko falla)
-const COINCAP_BASE_URL = 'https://api.coincap.io/v2';
-
-// Mapeo de IDs de CoinGecko a CoinCap
-const COIN_ID_MAP = {
-  'bitcoin': 'bitcoin',
-  'ethereum': 'ethereum',
-  'binancecoin': 'binance-coin',
-  'cardano': 'cardano',
-  'solana': 'solana',
-  'ripple': 'xrp',
-  'polkadot': 'polkadot',
-  'dogecoin': 'dogecoin',
-  'avalanche-2': 'avalanche',
-  'chainlink': 'chainlink',
-  'matic-network': 'polygon',
-  'litecoin': 'litecoin',
-  'uniswap': 'uniswap',
-  'stellar': 'stellar',
-  'monero': 'monero',
-  'ethereum-classic': 'ethereum-classic',
-  'tron': 'tron',
-  'shiba-inu': 'shiba-inu',
-  'cosmos': 'cosmos',
-  'near': 'near'
-};
-
-export const getCryptoPricesFromCoinCap = async (cryptoIds = CRYPTO_IDS) => {
-  try {
-    const data = {};
-
-    // Hacer llamadas secuenciales para evitar rate limit
-    for (const id of cryptoIds) {
-      const coinCapId = COIN_ID_MAP[id];
-      if (!coinCapId) continue;
-
-      try {
-        const response = await axios.get(`${COINCAP_BASE_URL}/assets/${coinCapId}`);
-        const coin = response.data.data;
-
-        data[id] = {
-          usd: parseFloat(coin.priceUsd),
-          usd_24h_change: parseFloat(coin.changePercent24Hr),
-          usd_24h_vol: parseFloat(coin.volumeUsd24Hr)
-        };
-      } catch (err) {
-        console.error(`Error fetching ${id} from CoinCap:`, err);
-      }
-
-      // Pequeño delay para evitar rate limit
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    return Object.keys(data).length > 0 ? data : null;
-  } catch (error) {
-    console.error('Error fetching from CoinCap:', error);
-    return null;
-  }
-};
-
-// Función principal con fallback automático
-export const getCryptoPricesWithFallback = async (cryptoIds = CRYPTO_IDS) => {
-  // Intentar primero con CoinGecko
-  let prices = await getCryptoPrices(cryptoIds);
-
-  // Si falla, usar CoinCap como fallback
-  if (!prices) {
-    console.log('CoinGecko falló, usando CoinCap como alternativa...');
-    prices = await getCryptoPricesFromCoinCap(cryptoIds);
-  }
-
-  return prices;
-};
+// Alias para mantener compatibilidad
+export const getCryptoPricesWithFallback = getCryptoPrices;
 
 // Función para generar un color aleatorio vibrante
 export const generateRandomColor = () => {
@@ -148,8 +91,13 @@ export const generateRandomColor = () => {
 // Obtener datos históricos de una criptomoneda
 export const getCryptoHistoricalData = async (id, days) => {
   try {
-    const response = await axios.get(`${BASE_URL}/coins/${id}/market_chart`, {
+    const url = IS_PRODUCTION
+      ? '/api/coingecko-history'
+      : `${BASE_URL}/coins/${id}/market_chart`;
+
+    const response = await axios.get(url, {
       params: {
+        id: id, // Añadir id como parámetro para la función serverless
         vs_currency: 'usd',
         days: days,
         interval: days === 1 ? 'hourly' : 'daily'

@@ -227,7 +227,7 @@ function App() {
     <>
       <div className="app">
         <header className="header">
-          <h1>Live Crypto Dashboard</h1>
+          <h1>Crypto Live Dashboard</h1>
           <p className="subtitle">Visualización de precios históricos y en tiempo real</p>
           {lastUpdate && (
             <p className="last-update">
