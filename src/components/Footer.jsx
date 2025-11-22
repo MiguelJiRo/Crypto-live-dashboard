@@ -32,7 +32,7 @@ const Footer = () => {
 
         <div className="footer-section">
           <p className="footer-year">
-            {new Date().getFullYear()} © Crypto Live Dashboard
+            {new Date().getFullYear()} © Live Crypto Dashboard
           </p>
         </div>
       </div>

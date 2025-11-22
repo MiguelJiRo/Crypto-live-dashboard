@@ -20,7 +20,9 @@ export const getCryptoPrices = async (cryptoIds = CRYPTO_IDS) => {
       params: {
         ids: cryptoIds.join(','),
         vs_currencies: 'usd',
-        include_24hr_change: true
+        include_24hr_change: true,
+        include_24hr_vol: true,
+        include_market_cap: true
       }
     });
     return response.data;
@@ -28,6 +30,108 @@ export const getCryptoPrices = async (cryptoIds = CRYPTO_IDS) => {
     console.error('Error fetching crypto prices:', error);
     return null;
   }
+};
+
+// Función simplificada para obtener información básica (sin sparkline que causa CORS)
+export const getCryptosBasicInfo = async (cryptoIds = CRYPTO_IDS) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/coins/markets`, {
+      params: {
+        vs_currency: 'usd',
+        ids: cryptoIds.join(','),
+        order: 'market_cap_desc',
+        sparkline: false // Sin sparkline para evitar CORS
+      }
+    });
+
+    // Convertir el array de respuesta a objeto con id como clave
+    const data = {};
+    response.data.forEach(coin => {
+      data[coin.id] = {
+        image: coin.image,
+        symbol: coin.symbol.toUpperCase()
+      };
+    });
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching crypto info from CoinGecko:', error);
+    return null;
+  }
+};
+
+// API alternativa: CoinCap (fallback cuando CoinGecko falla)
+const COINCAP_BASE_URL = 'https://api.coincap.io/v2';
+
+// Mapeo de IDs de CoinGecko a CoinCap
+const COIN_ID_MAP = {
+  'bitcoin': 'bitcoin',
+  'ethereum': 'ethereum',
+  'binancecoin': 'binance-coin',
+  'cardano': 'cardano',
+  'solana': 'solana',
+  'ripple': 'xrp',
+  'polkadot': 'polkadot',
+  'dogecoin': 'dogecoin',
+  'avalanche-2': 'avalanche',
+  'chainlink': 'chainlink',
+  'matic-network': 'polygon',
+  'litecoin': 'litecoin',
+  'uniswap': 'uniswap',
+  'stellar': 'stellar',
+  'monero': 'monero',
+  'ethereum-classic': 'ethereum-classic',
+  'tron': 'tron',
+  'shiba-inu': 'shiba-inu',
+  'cosmos': 'cosmos',
+  'near': 'near'
+};
+
+export const getCryptoPricesFromCoinCap = async (cryptoIds = CRYPTO_IDS) => {
+  try {
+    const data = {};
+
+    // Hacer llamadas secuenciales para evitar rate limit
+    for (const id of cryptoIds) {
+      const coinCapId = COIN_ID_MAP[id];
+      if (!coinCapId) continue;
+
+      try {
+        const response = await axios.get(`${COINCAP_BASE_URL}/assets/${coinCapId}`);
+        const coin = response.data.data;
+
+        data[id] = {
+          usd: parseFloat(coin.priceUsd),
+          usd_24h_change: parseFloat(coin.changePercent24Hr),
+          usd_24h_vol: parseFloat(coin.volumeUsd24Hr)
+        };
+      } catch (err) {
+        console.error(`Error fetching ${id} from CoinCap:`, err);
+      }
+
+      // Pequeño delay para evitar rate limit
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    return Object.keys(data).length > 0 ? data : null;
+  } catch (error) {
+    console.error('Error fetching from CoinCap:', error);
+    return null;
+  }
+};
+
+// Función principal con fallback automático
+export const getCryptoPricesWithFallback = async (cryptoIds = CRYPTO_IDS) => {
+  // Intentar primero con CoinGecko
+  let prices = await getCryptoPrices(cryptoIds);
+
+  // Si falla, usar CoinCap como fallback
+  if (!prices) {
+    console.log('CoinGecko falló, usando CoinCap como alternativa...');
+    prices = await getCryptoPricesFromCoinCap(cryptoIds);
+  }
+
+  return prices;
 };
 
 // Función para generar un color aleatorio vibrante

@@ -32,16 +32,22 @@ Dashboard completo para visualizar precios históricos y en tiempo real de las c
 
 ## API
 
-Este proyecto utiliza la API gratuita de CoinGecko. No se requiere autenticación para el uso básico.
+Este proyecto utiliza principalmente la API gratuita de CoinGecko, con CoinCap API como respaldo automático en caso de fallo.
 
-API Endpoint: `https://api.coingecko.com/api/v3`
+- **Primaria**: CoinGecko API (`https://api.coingecko.com/api/v3`)
+- **Fallback**: CoinCap API (`https://api.coincap.io/v2`)
+
+No se requiere autenticación para el uso básico de ambas APIs.
 
 ## Detalles Técnicos
 
 ### Modo En Vivo
-- Actualización automática cada 10 segundos
+- Actualización automática cada 5 segundos
 - Muestra los últimos 20 puntos de datos
 - Ideal para monitoreo en tiempo real
+- Mini gráficos (sparklines) integrados en cada tarjeta
+- Información de volumen 24h
+- Logos oficiales de cada criptomoneda
 
 ### Modo Histórico
 - Datos extraídos de la API de CoinGecko

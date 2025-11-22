@@ -4,7 +4,7 @@ import CryptoSummaryBar from './components/CryptoSummaryBar'
 import CryptoSearch from './components/CryptoSearch'
 import TimeRangeSelector from './components/TimeRangeSelector'
 import Footer from './components/Footer'
-import { getCryptoPrices, getAllCryptosHistoricalData, generateRandomColor, CRYPTO_IDS, TIME_RANGES } from './services/cryptoApi'
+import { getCryptoPricesWithFallback, getCryptosBasicInfo, getAllCryptosHistoricalData, generateRandomColor, CRYPTO_IDS, TIME_RANGES } from './services/cryptoApi'
 import './App.css'
 
 // Configuración inicial de colores y nombres
@@ -61,6 +61,7 @@ function App() {
   const [error, setError] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [currentPrices, setCurrentPrices] = useState({});
+  const [cryptoInfo, setCryptoInfo] = useState({}); // Para logos y sparklines
 
   // Guardar en localStorage cuando cambian las criptos seleccionadas
   useEffect(() => {
@@ -70,6 +71,17 @@ function App() {
   useEffect(() => {
     localStorage.setItem('cryptoColors', JSON.stringify(cryptoColors));
   }, [cryptoColors]);
+
+  // Cargar información básica de las criptos (logos)
+  useEffect(() => {
+    const fetchCryptoInfo = async () => {
+      const info = await getCryptosBasicInfo(selectedCryptos);
+      if (info) {
+        setCryptoInfo(info);
+      }
+    };
+    fetchCryptoInfo();
+  }, [selectedCryptos]);
 
   // Efecto para datos en vivo
   useEffect(() => {
@@ -82,9 +94,9 @@ function App() {
     });
     setCryptoData(initialData);
 
-    // Función para obtener y actualizar precios
+    // Función para obtener y actualizar precios (con fallback automático)
     const fetchPrices = async () => {
-      const prices = await getCryptoPrices(selectedCryptos);
+      const prices = await getCryptoPricesWithFallback(selectedCryptos);
       if (prices) {
         const now = new Date();
         const timeString = now.toLocaleTimeString('es-ES', {
@@ -119,8 +131,8 @@ function App() {
     // Obtener datos iniciales
     fetchPrices();
 
-    // Actualizar cada 10 segundos
-    const interval = setInterval(fetchPrices, 10000);
+    // Actualizar cada 5 segundos
+    const interval = setInterval(fetchPrices, 5000);
 
     return () => clearInterval(interval);
   }, [selectedRange, selectedCryptos]);
@@ -202,16 +214,20 @@ function App() {
   const summaryData = selectedCryptos.map(id => ({
     id,
     name: CRYPTO_NAMES_MAP[id] || id,
-    symbol: id.replace(/-/g, ' ').split(' ').map(w => w[0]).join('').toUpperCase(),
+    symbol: cryptoInfo[id]?.symbol || id.toUpperCase(),
     price: currentPrices[id]?.usd,
-    change24h: currentPrices[id]?.usd_24h_change
+    change24h: currentPrices[id]?.usd_24h_change,
+    volume24h: currentPrices[id]?.usd_24h_vol,
+    image: cryptoInfo[id]?.image,
+    // Usar solo datos de cryptoData para evitar CORS
+    sparklineData: (cryptoData[id] || []).map(d => d.price).filter(p => p != null)
   }));
 
   return (
     <>
       <div className="app">
         <header className="header">
-          <h1>Crypto Live Dashboard</h1>
+          <h1>Live Crypto Dashboard</h1>
           <p className="subtitle">Visualización de precios históricos y en tiempo real</p>
           {lastUpdate && (
             <p className="last-update">
